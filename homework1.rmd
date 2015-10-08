@@ -1,5 +1,6 @@
 ---
-title: 'Bios 6301: Assignment 1'
+title: 'Bios 6301: HW 1 Jordan Clark'
+author: 'Jordan Clark'
 output: html_document
 ---
 

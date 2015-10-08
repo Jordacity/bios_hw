@@ -1,5 +1,6 @@
 ---
-title: 'Bios 6301: Assignment 2'
+title: 'Bios 6301: HW 2 Jordan Clark'
+author: 'Jordan Clark'
 output: pdf_document
 ---
 
@@ -17,7 +18,7 @@ Check your output by using the `Knit PDF` button in RStudio.
     ```{r}
     setwd("~/Desktop/Bios6301")
     getwd()
-    cancer.df<-read.csv("./datasets/cancer.csv",row.names=1)
+    cancer.df<-read.csv("./datasets/cancer.csv")
     head(cancer.df)
     names(cancer.df)
     ```
@@ -75,7 +76,7 @@ max(x)
 sort(x)
 #Because our elements are characters, '1' is like 'a', '5' is like 'e' ...
 #... and '7' is like 'g', and they are ordered pseudo-alphabetically.
-sum(x)
+#(sum(x)) #I'm commenting this out because it won't compile otherwise.
 #It is an error because you cannot sum characters like you can numerically.    
 ```
           
@@ -84,7 +85,7 @@ sum(x)
 ```{r}
             y <- c("5",7,12)
     class(y[2])
-            y[2] + y[3]
+ #           y[2] + y[3]
       #It appears that the elements of this vector have taken the class... 
     #...of the first element, which is a character. 
 ```
