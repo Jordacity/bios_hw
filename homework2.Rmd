@@ -1,0 +1,246 @@
+---
+title: 'Bios 6301: Assignment 2'
+output: pdf_document
+---
+
+*(informally) Due Thursday, 17 September, 1:00 PM*
+
+50 points total.
+
+This assignment won't be submitted until we've covered Rmarkdown.
+Create R chunks for each question and insert your R code appropriately.
+Check your output by using the `Knit PDF` button in RStudio.
+
+1. **Working with data** In the `datasets` folder on the course GitHub repo, you will find a file called `cancer.csv`, which is a dataset in comma-separated values (csv) format. This is a large cancer incidence dataset that summarizes the incidence of different cancers for various subgroups. (18 points)
+
+    1. Load the data set into R and make it a data frame called `cancer.df`. (2 points)
+    ```{r}
+    setwd("~/Desktop/Bios6301")
+    getwd()
+    cancer.df<-read.csv("./datasets/cancer.csv",row.names=1)
+    head(cancer.df)
+    names(cancer.df)
+    ```
+    2. Determine the number of rows and columns in the data frame. (2)
+```{r}
+   dim(cancer.df)
+   #8 columns and 42120 rows
+```
+
+    3. Extract the names of the columns in `cancer.df`. (2)
+```{r}
+col.names<-c(colnames(cancer.df))
+col.names    
+```
+
+    4. Report the value of the 3000th row in column 6. (2)
+```{r}
+print(cancer.df[3000,6])
+
+```
+    5. Report the contents of the 172nd row. (2)
+```{r}
+print(cancer.df[172,])
+
+```
+    6. Create a new column that is the incidence *rate* (per 100,000) for each row.(3)
+```{r}
+cancer.df<-transform(cancer.df, i.rate=incidence/100000 )
+head(cancer.df)
+```
+    7. How many subgroups (rows) have a zero incidence rate? (2)
+```{r}
+zero<-0.0
+zero    
+cancer0.df<-cancer.df[cancer.df$i.rate %in% zero,]    
+head(cancer0.df)
+```
+    8. Find the subgroup with the highest incidence rate.(3)
+```{r}
+which.max(cancer.df[,'i.rate'])
+head(order(cancer.df[,'i.rate'],decreasing=T))
+#Looks like row 21387
+    cancer.df[21387,]
+```
+2. **Data types** (10 points)
+
+    1. Create the following vector: `x <- c("5","12","7")`. Which of the following commands will produce an error message? For each command, Either explain why they should be errors, or explain the non-erroneous result. (4 points)
+
+```{r}
+x <- c("5","12","7")
+class(x)
+max(x)
+#It returns a 7 because the elements are characters. 12 is not the max...
+#... because it starts with 1. So max returns a pseudo-alphabetic order. 
+sort(x)
+#Because our elements are characters, '1' is like 'a', '5' is like 'e' ...
+#... and '7' is like 'g', and they are ordered pseudo-alphabetically.
+sum(x)
+#It is an error because you cannot sum characters like you can numerically.    
+```
+          
+    2. For the next two commands, either explain their results, or why they should produce errors. (3 points)
+
+```{r}
+            y <- c("5",7,12)
+    class(y[2])
+            y[2] + y[3]
+      #It appears that the elements of this vector have taken the class... 
+    #...of the first element, which is a character. 
+```
+
+    3. For the next two commands, either explain their results, or why they should produce errors. (3 points)
+```{r}
+            z <- data.frame(z1="5",z2=7,z3=12)
+            z[1,2] + z[1,3]
+    #It appears that this worked because it's a data frame, rather than a vector.
+```
+3. **Data structures** Give R expressions that return the following matrices and vectors (*i.e.* do not construct them manually). (3 points each, 12 total)
+
+    1. $(1,2,3,4,5,6,7,8,7,6,5,4,3,2,1)$
+    ```{r}
+    xx<-(1:8)
+    yy<-rev(xx)
+    zz<-append(xx,yy)
+    zz<-zz[-8]
+    zz
+  #somewhat manually constructed?
+```
+  
+    2. $(1,2,2,3,3,3,4,4,4,4,5,5,5,5,5)$
+```{r}
+rep(1:5, 1:5)
+```
+
+    3. $\begin{pmatrix}
+      0 & 1 & 1  \\
+      1 & 0 & 1  \\
+      1 & 1 & 0  \\
+    \end{pmatrix}$
+```{r}  
+  g<-c(0,1)
+  f<-c(0,1)
+  h<-c(1,0)
+  i<-expand.grid(g,f,h)
+  i
+  #This is obviously too much. 
+  i.i<-i[which(rowSums(i)==2),]
+  i.i
+    #Just reorder this puppy
+  i.ii<-i.i[,c(2,1,3)]
+    i.ii
+    #Meandering solution but it worked. 
+```
+    4. $\begin{pmatrix}
+      1 & 2 & 3 & 4 \\
+      1 & 4 & 9 & 16 \\
+      1 & 8 & 27 & 64  \\
+      1 & 16 & 81 & 256 \\
+      1 & 32 & 243 & 1024  \\
+    \end{pmatrix}$
+```{r}
+n=5
+g<-matrix(0,nrow=n,ncol=4)
+a<-rep(1:n,1)
+a
+x<-c(1,2,3,4)
+for (j in 1:n)
+{g[j,]<-(x^j)
+}
+g
+#Absolutely ridiculous. I'm shocked that I actually did that. 
+```
+
+
+4. **Basic programming** (10 points)
+
+    1. Let $h(x,n)=1+x+x^2+\ldots+x^n = \sum_{i=0}^n x^i$. Write an R program to calculate $h(x,n)$ using a `for` loop. (5 points)
+```{r}
+x<-2
+h<-2
+n<-5
+x.fun<-rep(0,n)
+for(i in 0:(n-1)) {
+  x.fun[i]<-x^(i+1)
+  y<-1+x+sum(x.fun)
+}
+x.fun
+y
+
+1+h+h**2+h**3+h**4+h**5
+
+sum(x^(0:n))
+#Here's an easy non-loop way to do it. 
+rowSums(outer(x, 0:n, "^"))
+#Here's another super cool way to do it.
+```
+    1. If we list all the natural numbers below 10 that are multiples of 3 or 5, we get 3, 5, 6 and 9. The sum of these multiples is 23. Write an R program to perform the following calculations. (5 points)
+
+
+1. Find the sum of all the multiples of 3 or 5 below 1,000. (3, [euler1])
+```{r}        
+#Here's my best shot
+x<-numeric(999) 
+#creating a vector that holds the values
+for(i in 1:999) {
+if (i %%3 == 0 || i%%5==0) {
+x[i]<-i} else {x[i]<-0}}
+x 
+#this is a vector with all the multiples, with 0's in non-multiples
+y<-x[x !=0] 
+#remove the zero's
+y 
+#this is a vector with just the multiples
+sum(y)
+#The answer is 233168
+```
+1. Find the sum of all the multiples of 4 or 7 below 1,000,000. (2)
+```{r}
+#Same deal as before, just different multiples. 
+a<-numeric(999999)
+for(i in 1:999999){
+if (i %%4 ==0 || i%%7==0){
+a[i]<-i} else {a[i]<-0}
+}
+head(a)
+b<-a[a !=0] 
+head(b)
+sum(b)
+#answer is 178571071431
+#You probably won't like the manual entry and deletion of 0 terms...
+#... but this is the way I found that works. 
+```
+1. Each new term in the Fibonacci sequence is generated by adding the previous two terms. By starting with 1 and 2, the first 10 terms will be $(1, 2, 3, 5, 8, 13, 21, 34, 55, 89)$. Write an R program to calculate the sum of the first 15 even-valued terms. (5 bonus points, [euler2])
+```{r}
+#Going to try to determine the 15th even value term first
+bin <- 45
+fibvals <- numeric(bin)
+fibvals[1] <- 1
+fibvals[2] <- 1
+for (i in 3:bin) { 
+   fibvals[i] <- fibvals[i-1]+fibvals[i-2]
+} 
+fibvals
+#Here are the first 45 values of the fibonacci sequence
+#(I specified bin with some prior knowledge that fib. sequence produces...
+#...an even number every 3rd term. Might be cheating a little)
+
+c<-numeric(15)
+for(i in seq(fibvals)) {
+if(fibvals[i]%%2==0) { 
+c[i]<-fibvals[i]} else{c[i]<-0}
+}
+head(c)
+c
+ci<-c[c !=0] 
+length(ci)
+ci
+sum(ci)
+#The answer is 1485607536. 
+#Definitely not the most efficient way of doing it, but given that ...
+#... I have almost no prior experience with loops, I'm happy with it. 
+```
+Some problems taken or inspired by projecteuler.
+
+[euler1]:https://projecteuler.net/problem=1
+[euler2]: https://projecteuler.net/problem=2
