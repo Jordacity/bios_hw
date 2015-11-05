@@ -1,0 +1,328 @@
+---
+title: 'Bios 6301: Assignment 4'
+output: pdf_document
+author: 'Jordan Clark'
+---
+
+*Due Tuesday, 27 October, 1:00 PM*
+
+$5^{n=day}$ points taken off for each day late.
+
+50 points total.
+
+Submit a single knitr file (named `homework4.rmd`), along with a valid PDF output file. Inside the file, clearly indicate which parts of your responses go with which problems (you may use the original homework document as a template). Add your name as `author` to the file's metadata section. Raw R code/output or word processor files are not acceptable.
+
+Failure to name file `homework4.rmd` or include author name may result in 5 points taken off.
+
+### Question 1 ###
+
+**18 points**
+
+A problem with the Newton-Raphson algorithm is that it needs the derivative $f'$. If the derivative is hard to compute or does not exist, then we can use the *secant method*, which only requires that the function $f$ is continuous.
+
+Like the Newton-Raphson method, the **secant method** is based on a linear approximation to the function $f$. Suppose that $f$ has a root at $a$. For this method we assume that we have *two* current guesses, $x_0$ and $x_1$, for the value of $a$. We will think of $x_0$ as an older guess and we want to replace the pair $x_0$, $x_1$ by the pair $x_1$, $x_2$, where $x_2$ is a new guess.
+
+To find a good new guess x2 we first draw the straight line from $(x_0,f(x_0))$ to $(x_1,f(x_1))$, which is called a secant of the curve $y = f(x)$. Like the tangent, the secant is a linear approximation of the behavior of $y = f(x)$, in the region of the points $x_0$ and $x_1$. As the new guess we will use the x-coordinate $x_2$ of the point at which the secant crosses the x-axis.
+
+The general form of the recurrence equation for the secant method is:
+
+$$x_{i+1} = x_i - f(x_i)\frac{x_i - x_{i-1}}{f(x_i) - f(x_{i-1})}$$
+
+Notice that we no longer need to know $f'$ but in return we have to provide *two* initial points, $x_0$ and $x_1$.
+
+```{r}
+#Here's a function that performs the secant algorithm, given a function and two starting values.
+ secantz<-function(f,x0,x1){
+    x[1]=x1
+ 	i=1
+ 	while ( f(x[i])!=0 ) {
+ 		i=i+1
+ 		if (i==2) {
+ 			x[2]=x[1]-f(x[1])*(x[1]-x0)/(f(x[1])-f(x0))
+ 		} else {
+ 			x[i]=x[i-1]-f(x[i-1])*(x[i-1]-x[i-2])/(f(x[i-1])-f(x[i-2]))
+ 		}
+ 	}
+ 	x[i]
+ }
+secantz(expression(cos(x)-x),1,10)
+secantz(expression(cos(x)-x),1,2)
+#The function returns the root 0.739
+
+#Here's the newton-raphson method, from class notes. 
+newton <- function(x, f, fp, tol=1e-7, iter=100){
+  i <- 1
+  while(abs(eval(f)) > tol & i < iter) {
+    x <- x - eval(f)/eval(D(f, 'x'))
+    i <- i + 1
+  }
+  if(i == iter) {
+    stop('method did not converge')
+  }
+  x
+}
+
+newton(1, expression(cos(x)-x))
+newton(100, expression(cos(x)-x))
+#It also gives us 0.739.
+
+system.time(newton(1000,expression(cos(x)-x)),gcFirst = TRUE)
+system.time(secantz(expression(cos(x)-x),1,1000),gcFirst = TRUE)
+
+#The difference appears to be 0.001 seconds. Strangely, I do not get this result every time. I've timed replications below. This doesn't seem to change the output. 
+
+system.time(replicate(newton(1000,expression(cos(x)-x)),gcFirst = TRUE),1000)
+system.time(replicate(secantz(expression(cos(x)-x),1,1000),gcFirst = TRUE),1000)
+
+```
+**Write a function that implements the secant algorithm.** Validate your program by finding the root of the function $f(x) = \cos(x) - x$. Compare its performance with the Newton-Raphson method -- which is faster, and by how much?  For this example $f'(x) = -\sin(x) - 1$.
+
+### Question 2 ###
+
+**20 points**
+
+The game of craps is played as follows. First, you roll two six-sided dice; let x be the sum of the dice on the first roll. If x = 7 or 11 you win, otherwise you keep rolling until either you get x again, in which case you also win, or until you get a 7 or 11, in which case you lose.
+
+Write a program to simulate a game of craps. You can use the following snippet of code to simulate the roll of two (fair) dice:
+
+```{r}
+
+x <-sum(ceiling(6*runif(2)))
+crapz <- function(n){
+  for(i in seq(n)){
+nloops <- 1
+win <- 0
+repeat{
+  x <- sum(ceiling(6*runif(2)))
+  if (nloops==1 && (x==7 | x == 11)) win <- 1
+  if (nloops==1) point <- x
+  if (nloops > 1 && x == point) win <- 1
+  if (x==7 | x == 11 | win==1) break;
+  nloops <- nloops +1
+}
+ if (i==1 && win==0) product <- 'Loss'
+ if (i==1 && win==1) product <- 'Win'
+    if (i>1 && win==0) product <- c(product,'Loss')
+    if (i>1 && win==1) product <- c(product,'Win')
+  }
+  return(product)
+}
+set.seed(100)
+crapz(3)
+#3 Losses at this particular seed
+
+for(i in 1:1000){
+set.seed(i)
+y<-crapz(10)
+if(identical(y,rep("Win", 10))==TRUE) print(i)
+                             }
+set.seed(880)
+crapz(10)
+#Seems to work at 880
+```
+
+1. The instructor should be able to easily import and run your program (function), and obtain output that clearly shows how the game progressed.  Set the RNG seed with `set.seed(100)` and show the output of three games. (15 points)
+
+1. Find a seed that will win ten straight games.  Consider adding an argument to your function that disables output. Show the output of the ten games. (5 points)
+
+
+### Question 3 ###
+
+**12 points**
+
+Obtain a copy of the [football-values lecture](https://github.com/couthcommander/football-values).  Save the five CSV files in your working directory.
+
+Modify the code to create a function.  This function will create dollar values given information (as arguments) about a league setup.  It will return a data.frame and write this data.frame to a CSV file.  The final data.frame should contain the columns 'PlayerName', 'pos', 'points', 'value' and be orderd by value descendingly.  Do not round dollar values.
+
+Note that the returned data.frame should have `sum(posReq)*nTeams` rows.
+
+Define the function as such (6 points):
+
+```{r eval=FALSE}
+
+setwd('~/Downloads/football-values-master')
+year<-2015
+# path: directory path to input files
+# file: name of the output file; it should be written to path
+# nTeams: number of teams in league
+# cap: money available to each team
+# posReq: number of starters for each position
+# points: point allocation for each category
+ffvalues <- function(path, file='outfile.csv', nTeams=12, cap=200, posReq=c(qb=1, rb=2, wr=3, te=1, k=1),
+                     points=c(fg=4, xpt=1, pass_yds=1/25, pass_tds=4, pass_ints=-2,
+                              rush_yds=1/10, rush_tds=6, fumbles=-2, rec_yds=1/20, rec_tds=6)) {
+  k <- read.csv(file.path(year,'proj_k15.csv'), header=TRUE, stringsAsFactors=FALSE)
+qb <- read.csv(file.path(year,'proj_qb15.csv'), header=TRUE, stringsAsFactors=FALSE)
+rb <- read.csv(file.path(year,'proj_rb15.csv'), header=TRUE, stringsAsFactors=FALSE)
+te <- read.csv(file.path(year,'proj_te15.csv'), header=TRUE, stringsAsFactors=FALSE)
+wr <- read.csv(file.path(year,'proj_wr15.csv'), header=TRUE, stringsAsFactors=FALSE)
+
+cols <- unique(c(names(k), names(qb), names(rb), names(te), names(wr)))
+
+k[,'pos'] <- 'k'
+qb[,'pos'] <- 'qb'
+rb[,'pos'] <- 'rb'
+te[,'pos'] <- 'te'
+wr[,'pos'] <- 'wr'
+
+# append 'pos' to unique column list
+cols <- c(cols, 'pos')
+
+# create common columns in each data.frame
+# initialize values to zero
+k[,setdiff(cols, names(k))] <- 0
+qb[,setdiff(cols, names(qb))] <- 0
+rb[,setdiff(cols, names(rb))] <- 0
+te[,setdiff(cols, names(te))] <- 0
+wr[,setdiff(cols, names(wr))] <- 0
+
+
+x <- rbind(k[,cols], qb[,cols], rb[,cols], te[,cols], wr[,cols])
+  
+x[,c('p_fg','p_xpt','p_pass_yds','p_pass_tds','p_pass_ints','p_rush_yds',
+     'p_rush_tds','p_fumbles','p_rec_yds','p_rec_tds')]<-
+  x[,c('fg','xpt','pass_yds','pass_tds','pass_ints','rush_yds',
+     'rush_tds','fumbles','rec_yds','rec_tds')]*points
+
+x[,'points'] <- rowSums(x[,grep("^p_", names(x))])
+
+x2 <- x[order(x[,'points'], decreasing=TRUE),]
+
+k.ix <- which(x2[,'pos']=='k')
+qb.ix <- which(x2[,'pos']=='qb')
+rb.ix <- which(x2[,'pos']=='rb')
+te.ix <- which(x2[,'pos']=='te')
+wr.ix <- which(x2[,'pos']=='wr')
+
+x2[k.ix, 'marg'] <- x2[k.ix,'points'] - x2[k.ix[posReq['k']*nTeams],'points']
+x2[qb.ix, 'marg'] <- x2[qb.ix,'points'] - x2[qb.ix[posReq['qb']*nTeams],'points']
+x2[rb.ix, 'marg'] <- x2[rb.ix,'points'] - x2[rb.ix[posReq['rb']*nTeams],'points']
+x2[te.ix, 'marg'] <- x2[te.ix,'points'] - x2[te.ix[posReq['te']*nTeams],'points']
+x2[wr.ix, 'marg'] <- x2[wr.ix,'points'] - x2[wr.ix[posReq['wr']*nTeams],'points']
+
+x3 <- x2[x2[,'marg'] >= 0,]
+
+# re-order by marginal points
+x3 <- x3[order(x3[,'marg'], decreasing=TRUE),]
+
+# reset the row names
+rownames(x3) <- NULL
+
+# calculation for player value
+x3[,'value'] <- x3[,'marg']*(nTeams*cap-nrow(x3))/sum(x3[,'marg']) + 1
+
+x4 <- x3[,c('PlayerName','pos','points','marg','value')]
+write.csv(x4$value, file=file) 
+return(x4)
+
+## read in CSV files
+  ## calculate dollar values
+  ## save dollar values as CSV file
+  ## return data.frame with dollar values
+}
+x1<-ffvalues('.')
+x1
+
+```
+
+1. Call `x1 <- ffvalues('.')`
+
+    1.  How many players are worth more than $20? (1 point)
+```{r}
+valuez<-x1$value
+valuez
+length(valuez[valuez>20])
+#43 players
+    ```
+    
+    1.  Who is 15th most valuable running back (rb)? (1 point)
+
+```{r}
+   which(x1[,'pos']=='rb')[15]
+x1[34,]
+#Tevin Coleman
+    ```
+
+
+1. Call `x2 <- ffvalues(getwd(), '16team.csv', nTeams=16, cap=150)`
+
+```{r}
+  x2 <- ffvalues(getwd(), '16team.csv', nTeams=16, cap=150)
+    ```
+
+    1.  How many players are worth more than $20? (1 point)
+```{r}    
+x2
+valuez2<-x2$value
+length(valuez2[valuez2>20])
+#32 players    
+```
+    1.  How many wide receivers (wr) are in the top 40? (1 point)
+```{r}
+n<-(x2[1:40,])
+length(which((n[,'pos']=='wr')))
+#17 wide receivers in the top 40. 
+```
+1. Call:
+
+    ```{r eval=FALSE}
+    x3 <- ffvalues('.', 'qbheavy.csv', posReq=c(qb=2, rb=2, wr=3, te=1, k=0.09),
+            points=c(fg=0, xpt=0, pass_yds=1/25, pass_tds=6, pass_ints=-2,
+                    rush_yds=1/10, rush_tds=6, fumbles=-2, rec_yds=1/20, rec_tds=6))
+#The way my function is written does not work well with both k=0 and fg/xpt=0, so I did the best I could do and set posReq for k =.09, so that pushes all of my kickers except 1 off the list. If I had more time, I would go back and rewrite my function so that this bug didn't exist. However, this is the best I can do right now. 
+
+x3
+    ```
+
+    1.  How many players are worth more than $20? (1 point)
+```{r}    
+valuez3<-x3$value
+length(valuez3[valuez3>20])
+#32 people above 20 bucks
+    ```
+    1.  How many quarterbacks (qb) are in the top 30? (1 point)
+```{r}
+nn<-(x3[1:30,])
+length(which((nn[,'pos']=='qb')))
+#11 quarter backs in the top 30. 
+```
+### Question 4 ###
+
+**5 bonus points**
+
+This code makes a list of all functions in the base package:
+
+```{r eval=FALSE}
+objs <- mget(ls("package:base"), inherits = TRUE)
+funs <- Filter(is.function, objs)
+```
+
+Using this list, write code to answer these questions.
+
+1. Which function has the most arguments? (3 points)
+
+1. How many functions have no arguments? (2 points)
+
+Hint: find a function that returns the arguments for a given function.
+
+
+### Notes/Grade ###
+```{r}
+## Question 1: 13/15 points
+
+## secantz() is an argument that takes f and 2 initial values.
+secantz<-function(f,x0,x1){...}
+secantz(expression(cos(x)-x),1,10) # this doesn't run for me?
+## you can define f as:
+f<- function(x) cos(x) - x
+secantz(f,1,10)
+## system.time approach is good
+
+## Question 2: awesome! 18/18 points
+  
+## Question 3: something in you function is giving you slightly off results
+  
+## Question 4 (not a bonus problem): 0/5 points  
+```
+
+43/50 points
