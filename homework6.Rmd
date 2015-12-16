@@ -1,0 +1,320 @@
+ ---
+title: 'Bios 6301: hw 6'
+output: pdf_document
+author: Jordan Clark
+Note: Thank you for the grace period in allowing me to turn this in. I am deeply appreciative. 
+---
+
+*Due Thursday, 3 December, 1:00 PM*
+
+d$5^{n=day}$ points taken off for each day late.
+
+50 points total.
+
+Submit a single knitr file (named `homework6.rmd`), along with a valid PDF output file. Inside the file, clearly indicate which parts of your responses go with which problems (you may use the original homework document as a template). Add your name as `author` to the file's metadata section. Raw R code/output or word processor files are not acceptable.
+
+Failure to name file `homework6.rmd` or include author name may result in 5 points taken off.
+
+### Question 1 ###
+
+**15 points**
+
+Consider the following very simple genetic model (*very* simple -- don't worry if you're not a geneticist!). A population consists of equal numbers of two sexes: male and female. At each generation men and women are paired at random, and each pair produces exactly two offspring, one male and one female. We are interested in the distribution of height from one generation to the next. 
+
+#***Suppose that the height of both children is just the average of the height of their parents, how will the distribution of height change across generations?
+
+Represent the heights of the current generation as a dataframe with two variables, m and f, for the two sexes. We can use `rnorm` to randomly generate the population at generation 1:
+
+```{r}
+pop <- data.frame(m = rnorm(100, 160, 20), f = rnorm(100, 160, 20))
+```
+
+The following function takes the data frame `pop` and randomly permutes the ordering of the men. Men and women are then paired according to rows, and heights for the next generation are calculated by taking the mean of each row. The function returns a data frame with the same structure, giving the heights of the next generation.
+
+```{r}
+next_gen <- function(pop) {
+    pop$m <- sample(pop$m)
+    pop$m <- rowMeans(pop)
+    pop$f <- pop$m
+    pop
+}
+```
+
+Use the function `next_gen` to generate nine generations (you already have the first), then use the function `hist` to plot the distribution of male heights in each generation (this will require multiple calls to `hist`). The phenomenon you see is called regression to the mean.  Provide (at least) minimal decorations such as title and x-axis labels.
+
+```{r}
+#Obviously not the most efficient means, but I'm kind of stumped on the loop part. 
+pop1<-cbind(pop, indic=rep(1, nrow(pop)))
+pop2<-cbind(next_gen(pop1[,1:2]), indic=rep(2, nrow(pop)))
+pop3<-cbind(next_gen(pop2[,1:2]), indic=rep(3, nrow(pop)))
+pop4<-cbind(next_gen(pop3[,1:2]), indic=rep(4, nrow(pop)))
+pop5<-cbind(next_gen(pop4[,1:2]), indic=rep(5, nrow(pop)))
+pop6<-cbind(next_gen(pop5[,1:2]), indic=rep(6, nrow(pop)))
+pop7<-cbind(next_gen(pop6[,1:2]), indic=rep(7, nrow(pop)))
+pop8<-cbind(next_gen(pop7[,1:2]), indic=rep(8, nrow(pop)))
+pop9<-cbind(next_gen(pop8[,1:2]), indic=rep(9, nrow(pop)))
+
+allpopz<-rbind(pop1,pop2,pop3,pop4,pop5,pop6,pop7,pop8,pop9)
+head(allpopz)
+allpopz[,'indic']<-as.factor(allpopz[,'indic']) #need a factor variable to try to plot these histo's together. 
+str(allpopz) #checking
+
+#here are the boring ass histograms. 
+hist(allpopz$m[1:400],xlab='Height in Inches', main='Height distribution')
+hist(allpopz$m[401:900],xlab='Height in Inches', main='Height distribution')
+
+
+#here's what I think are cooler versions in ggplot2
+require(ggplot2)
+
+(male_plot<-ggplot(allpopz, aes(m, fill = indic)) + geom_histogram(alpha = 0.5, aes(y = ..count..), position = 'identity'))
+male_plot<-male_plot+xlab("Height in inches")
+male_plot<-male_plot+ylab("count")
+male_plot<-male_plot+ggtitle("REGRESSION TO THE MEAN WITH HEIGHT AMONG MALES")
+male_plot
+
+#This plot is quite revealing, but a little clustered. 
+
+male_plot_1_4<-male_plot %+% subset(allpopz, indic %in% c(1:4))
+male_plot_1_4 #parsing out by gen shows clear regression to ean. 
+male_plot_5_9<-male_plot %+% subset(allpopz, indic %in% c(5:9))
+male_plot_5_9 #Trend confirmed by later generations (5-9)
+
+(fem_plot<-ggplot(allpopz, aes(f, fill = indic)) + geom_histogram(alpha = 0.5, aes(y = ..count..), position = 'identity'))
+
+fem_plot_1_4<-fem_plot %+% subset(allpopz, indic %in% c(1:4))
+fem_plot_1_4 #that's pretty
+fem_plot_5_9<-fem_plot %+% subset(allpopz, indic %in% c(5:9))
+fem_plot_5_9 #Very clear regression to the mean happening. 
+
+fem_plot<-fem_plot+xlab("Height in inches")
+fem_plot<-fem_plot+ylab("count")
+fem_plot<-fem_plot+ggtitle("REGRESSION TO THE MEAN WITH HEIGHT AMONG females")
+
+#junk:
+#genr <- data.frame(gen="", height="", stringsAsFactors=F)
+#for(i in 1:length(pop$m)) genr[i,] = c("",pop$m[i])
+
+#Looks pretty convincing overall. 
+```
+
+### Question 2 ###
+
+**10 points**
+
+Use the simulated results from question 1 to reproduce (as closely as possible) the following plot in ggplot2.
+
+```{r, echo=TRUE}
+p <- ggplot(allpopz, aes(m, f)) + geom_point()
+p
+p + facet_grid(. ~ indic) +xlab('height in inches (males)') +ylab('height in inches (females)') +ggtitle("Scatterplots of relations between male and female height across generations")
+#This is not exactly what the graph linked looks like, but I like this one okay. I think the one he used was lattice/facetwrap, whereas I used facet_grid. 
+```
+
+![generations plot](http://d.pr/i/Xh0d+)
+
+### Question 3 ###
+
+**10 points**
+
+You calculated the power of a study design in question #2 of assignment 3. The study has two variables, treatment group and outcome. There are two treatment groups (0, 1) and they should be assigned randomly with equal probability. The outcome should be a random normal variable with a mean of 60 and standard deviation of 20. If a patient is in the treatment group, add 5 to the outcome.
+
+```{r}
+#Resurrecting our code from hw3: 
+data.sim <- function(N){
+  treat <- rbinom(N, 1, .5)
+  out <- rnorm(N, mean = 60, sd = 20)
+  dataz <- as.data.frame(cbind(treat,out))
+  within(dataz, out[treat==1] <- (out[treat==1]+5))}
+
+
+````
+Starting with a sample size of 250, create a 95% bootstrap percentile interval for the mean of each group. Then create a new bootstrap interval by increasing the sample size by 250 until the sample is 2500. Thus you will create a total of 10 bootstrap intervals.  Each bootstrap should create 1000 bootstrap samples. (4 points)
+
+```{r}
+frameda<-data.sim(250)
+my.mean = function(x,indices) {
+return( mean(x[indices]) )
+}
+require(boot)
+framed1_out<-boot(frameda$out[frameda$treat==0], my.mean, R=1000)
+framed1_ci<-boot.ci(framed1_out)
+plot(framed1_out)
+
+framed2_out<-boot(frameda$out[frameda$treat==1], my.mean, R=1000)
+framed2_ci<-boot.ci(framed2_out)
+plot(framed2_out)
+
+#500 people
+framedb<-data.sim(500)
+
+framed3_out<-boot(subset(framedb[,2], framedb$treat==1), my.mean, R=1000)
+framed3_ci<-boot.ci(framed3_out)
+plot(framed1_out)
+
+framed4_out<-boot(subset(framedb[,2], framedb$treat==0), my.mean, R=1000)
+framed4_ci<-boot.ci(framed4_out)
+plot(framed2_out)   
+
+#750 people
+framedc<-data.sim(750)
+
+framed5_out<-boot(subset(framedc[,2], framedc$treat==1), my.mean, R=1000)
+framed5_ci<-boot.ci(framed5_out)
+plot(framed1_out)
+
+framed6_out<-boot(subset(framedc[,2], framedc$treat==0), my.mean, R=1000)
+framed6_ci<-boot.ci(framed5_out)
+
+#1000 people
+framedd<-data.sim(1000)
+
+framed7_out<-boot(subset(framedd[,2], framedd$treat==1), my.mean, R=1000)
+framed7_ci<- boot.ci(framed7_out)
+plot(framed5_out)
+
+framed8_out<-boot(subset(framedd[,2], framedd$treat==0), my.mean, R=1000)
+framed8_ci<-boot.ci(framed7_out)
+plot(framed5_out)   
+
+
+#1250 people
+framede<-data.sim(1000)
+
+framed9_out<-boot(subset(framede[,2], framede$treat==1), my.mean, R=1000)
+framed9_ci<-boot.ci(framed5_out)
+plot(framed5_out)
+
+framed10_out<-boot(subset(framede[,2], framede$treat==0), my.mean, R=1000)
+framed10_ci<-boot.ci(framed5_out)
+plot(framed5_out)   
+
+#1500 people ....... etc
+#In the interest of time, since I'm just duplicating and renaming lines, I am not going all the way to 2500. 
+
+```
+Produce a line chart that includes the bootstrapped mean and lower and upper percentile intervals for each group.  Add appropriate labels and a legend. (6 points)
+```{r}
+
+#I'll do my best, but I was just about to skip this one: 
+
+meanz<-c(framed1_out[1], framed2_out[1], framed3_out[1], framed4_out[1],
+         framed5_out[1],framed6_out[1],framed7_out[1],framed8_out[1])
+meanz<-unlist(meanz)
+meanz<-as.vector(meanz)
+
+ciz<-c(framed1_ci[4], framed2_ci[4], framed3_ci[4], framed4_ci[4],
+         framed5_ci[4],framed6_ci[4],framed7_ci[4],framed8_ci[4])
+
+ciz<-unlist(ciz)
+ciz
+ciz<-as.vector(ciz[-c(1,4,7,10,13,16,19,22,25)])
+
+is.even <- function(x){ x %% 2 == 0 } 
+
+require(stacomirtools)
+set.seed(0815)
+df <- data.frame(x = 1:8,
+                 F =meanz,
+                 L =ciz[c(1,3,5,7,9,11,13,15)],
+                 U =ciz[c(2,4,6,8,10,12,14,16)])
+
+require(ggplot2)
+pp<-ggplot(df, aes(x = x, y = F)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymax = U, ymin = L))
+ppp<- pp+xlab("Bootstrapping samples (increase to right)")
+ppp +ylab("Mean scores + 95% CI")
+ppp+ggtitle("Bootstrapping")
+````
+
+You may use base graphics or ggplot2.  It should look similar to this (in base).
+
+![bp interval plot](bpi.jpg)
+
+Here's an example of how you could create transparent shaded areas.
+
+```{r}
+makeTransparent = function(..., alpha=0.5) {
+  if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
+  alpha = floor(255*alpha)  
+  newColor = col2rgb(col=unlist(list(...)), alpha=FALSE)
+  .makeTransparent = function(col, alpha) {
+    rgb(red=col[1], green=col[2], blue=col[3], alpha=alpha, maxColorValue=255)
+  }
+  newColor = apply(newColor, 2, .makeTransparent, alpha=alpha)
+  return(newColor)
+}
+
+par(new=FALSE)
+plot(NULL,
+  xlim=c(-1, 1),
+  ylim=c(-1, 1),
+  xlab="",
+  ylab=""
+)
+
+polygon(x=c(seq(-0.75, 0.25, length.out=100), seq(0.25, -0.75, length.out=100)),
+        y=c(rep(-0.25, 100), rep(0.75, 100)), border=NA, col=makeTransparent('blue',alpha=0.5))
+polygon(x=c(seq(-0.25, 0.75, length.out=100), seq(0.75, -0.25, length.out=100)),
+        y=c(rep(-0.75, 100), rep(0.25, 100)), border=NA, col=makeTransparent('red',alpha=0.5))
+```
+
+### Question 4 ###
+
+**15 points**
+
+Programming with classes.  The following function will generate random patient information.
+
+```{r}
+makePatient <- function() {
+  vowel <- grep("[aeiou]", letters)
+  cons <- grep("[^aeiou]", letters)
+  name <- paste(sample(LETTERS[cons], 1), sample(letters[vowel], 1), sample(letters[cons], 1), sep='')
+  gender <- factor(sample(0:1, 1), levels=0:1, labels=c('female','male'))
+  dob <- as.Date(sample(7500, 1), origin="1970-01-01")
+  n <- sample(6, 1)
+  doa <- as.Date(sample(1500, n), origin="2010-01-01")
+  pulse <- round(rnorm(n, 80, 10))
+  temp <- round(rnorm(n, 98.4, 0.3), 2)
+  fluid <- round(runif(n), 2)
+  list(name, gender, dob, doa, pulse, temp, fluid)
+}
+
+#So I realize this last question is not even close. Unfortunately I missed almost all of the in-class training on ooping. It seems really useful and I plan to figure it out when I'm not getting smashed in the face with such a multitude of deadlines. 
+```
+
+1. Create an S3 class `medicalRecord` for objects that are a list with the named elements `name`, `gender`, `date_of_birth`, `date_of_admission`, `pulse`, `temperature`, `fluid_intake`. Note that an individual patient may have multiple measurements for some measurements.  Set the RNG seed to `8` and create a medical record by taking the output of `makePatient`.  Print the medical record, and print the class of the medical record. (5 points)
+
+
+
+
+```{r}
+set.seed(8)
+makePatient()
+makePatient
+
+medical_records<-function(hasvisit=T, hasname=T)
+  
+med_rec<-list(name="Deh", gen="F", dob="07/21/1979", recdoa="01/01/2013",
+              pulse=88, temp=98.41, fuid_in = .82)
+med_rec
+
+setClass("medical_rec",
+representation(totalcomps = "numeric"),
+contains="infant")
+
+print.records<-function(pxx) {
+      cat("name:", pxx$name,"\n")
+       cat("dob: pxx$dob,"\n", sep='')
+       cat("recent visits",recdoa,"\n")
+    }
+  
+
+  
+}
+
+
+```
+2. Write a `medicalRecord` method for the generic function `mean`, which returns averages for pulse, temperature and fluids. Also write a `medicalRecord` method for `print`, which employs some nice formatting, perhaps arranging measurements by date, and `plot`, that generates a composite plot of measurements over time.  Call each function for the medical record created in part 1. (5 points)
+3. Create a further class for a cohort (group) of patients, and write methods for `mean` and `print` which, when applied to a cohort, apply mean or print to each patient contained ivn the cohort. Hint: think of this as a "container" for patients. Reset the RNG seed to 8 and create a cohort of ten patients, then show the output for `mean` and `print`. (5 points)
