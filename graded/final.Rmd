@@ -1,0 +1,522 @@
+---
+title: "Bios 6301: Final Project"
+date: "12/17/2015"
+author: "Jordan Clark"
+output: html_document
+---
+
+*Due Monday, 14 December, 6:00 PM*
+
+200 points total.
+
+Submit a single knitr file (named `final.rmd`), along with a valid PDF output file. Add your name as `author` to the file's metadata section. Raw R code/output or word processor files are not acceptable.
+
+All work should be done by the student, please no collaboration.  You may ask the instructor for help or clarification.
+
+Obtain a copy of the [football-values lecture](https://github.com/couthcommander/football-values) -- make sure to update this repository if you have previously cloned it.  Save the six 2015 CSV files in your working directory (note the new file `nfl_current15.csv`).  You may utilize [assignment 4, question 3](https://dl.dropboxusercontent.com/u/5044136/Bios301/homework4.rmd) in your solution.
+
+Task 1: Finding Residuals (80 points)
+------------
+
+At the beginning of the course we examined projections for the 2015 NFL season.  With the season ~60% completed, let's compare the observed values to the estimated values.  Place all code at the end of the instructions.
+
+1. Read and combine the projection data (five files) into one data set, adding a position column.
+
+1. The NFL season is 17 weeks long, and 10 weeks have been completed.  Each team plays 16 games and has one week off, called the bye week.  Four teams have yet to have their bye week: CLE, NO, NYG, PIT.  These four teams have played ten games, and every other team has played nine games.  Multiply the numeric columns in the projection data by the percentage of games played (for example, 10/16 if team is PIT).
+
+1. Sort and order the data by the `fpts` column descendingly.  Subset the data by keeping the top 20 kickers, top 20 quarterbacks, top 40 running backs, top 60 wide recievers, and top 20 tight ends.  Thus the projection data should only have 160 rows.
+
+1. Read in the observed data (`nfl_current15.csv`)
+
+1. Merge the projected data with the observed data by the player's name. Keep all 160 rows from the projection data. If observed data is missing, set it to zero.
+
+    You can directly compare the projected and observed data for each player.  There are fifteen columns of interest:
+
+    ```{r, echo=FALSE}
+    data.frame(Name=c('field goals','field goals attempted','extra points','passing attempts','passing completions',
+                      'passing yards','passing touchdowns','passing interceptions','rushing attempts','rushing yards',
+                      'rushing touchdowns','receiving attempts','receiving yards','receiving touchdowns','fumbles'), 
+               projected_col=c('fg','fga','xpt','pass_att','pass_cmp','pass_yds','pass_tds','pass_ints',
+                           'rush_att','rush_yds','rush_tds','rec_att','rec_yds','rec_tds','fumbles'),
+               observed_col=c("FGM","FGA","XPM","Att.pass","Cmp.pass","Yds.pass","TD.pass","Int.pass",
+                              "Att.rush","Yds.rush","TD.rush","Rec.catch","Yds.catch","TD.catch","Fmb"))
+    ```
+
+```{r, echo=FALSE}
+library(plyr)
+
+setwd('~/Documents/football-values/2015')
+
+te <- read.csv('proj_te15.csv', header=TRUE, stringsAsFactors=FALSE)
+wr <- read.csv('proj_wr15.csv', header=TRUE, stringsAsFactors=FALSE)
+k <- read.csv('proj_k15.csv', header=TRUE, stringsAsFactors=FALSE)
+qb <- read.csv('proj_qb15.csv', header=TRUE, stringsAsFactors=FALSE)
+rb <- read.csv('proj_rb15.csv', header=TRUE, stringsAsFactors=FALSE)
+
+###### add positions
+cols <- unique(c(names(k), names(qb), names(rb), names(te), names(wr)))
+te[,'pos'] <- 'te'
+wr[,'pos'] <- 'wr'
+k[,'pos'] <- 'k'
+qb[,'pos'] <- 'qb'
+rb[,'pos'] <- 'rb'
+  
+cols <- c(cols, 'pos')
+te[,setdiff(cols, names(te))] <- 0
+wr[,setdiff(cols, names(wr))] <- 0
+k[,setdiff(cols, names(k))] <- 0
+qb[,setdiff(cols, names(qb))] <- 0
+rb[,setdiff(cols, names(rb))] <- 0
+  
+##merging 
+xx <- rbind(k[,cols], qb[,cols], rb[,cols], te[,cols], wr[,cols])
+  
+
+xx[,'perc'] <- 9/16      #### teams played 9 games
+  
+t_cle <- which(xx[,'Team']=='CLE')
+t_no <- which(xx[,'Team']=='NO')
+t_nyg <- which(xx[,'Team']=='NYG')
+t_pit <- which(xx[,'Team']=='PIT')
+
+ten.game <- c(t_cle, t_no, t_nyg, t_pit)  ###
+xx[ten.game, 'perc'] <- 10/16    ####  teams that played 10 games 
+  
+
+xx[,3:18] <- xx[,3:18]*xx[,'perc']
+  
+#### by ftp
+x2 <- xx[order(xx[,'fpts'], decreasing=TRUE),]
+
+k <- x2[ which(x2$pos=='k'),]
+k <- k[1:20,]
+qb <- x2[ which(x2$pos=='qb'),]
+qb <- qb[1:20,]
+rb <- x2[ which(x2$pos=='rb'),]
+rb <- rb[1:40,]
+wr <- x2[ which(x2$pos=='wr'),]
+wr <- wr[1:60,]
+te <- x2[ which(x2$pos=='te'),]
+te <- te[1:20,]
+  
+x2<- rbind(k,qb,rb,wr,te)
+x2 <- x2[c(-20)]                                
+names(x2)[1] <- "Name"                          ## change name
+  
+observed <- read.csv("nfl_current15.csv")
+  
+
+totez <- merge(x2,observed,by="Name", all.x=T)  
+totez <- totez[c(-20,-21)]                      
+totez[is.na(totez)] <- 0                        ### replace missing data 
+
+#difference scores
+totez[,'d_rush_yds']<-totez[,'Yds.rush']-totez[,'rush_yds']
+totez[,'d_rush_tds']<-totez[,'TD.rush']-totez[,'rush_tds']
+totez[,'d_rec_att']<-totez[,'Rec.catch']-totez[,'rec_att']
+totez[,'d_rec_yds']<-totez[,'Yds.catch']-totez[,'rec_yds']
+totez[,'d_rec_tds']<-totez[,'TD.catch']-totez[,'rec_tds']
+totez[,'d_fumbles']<-totez[,'Fmb']-totez[,'fumbles']
+totez[,'d_fg']<-totez[,'FGM']-totez[,'fg']
+totez[,'d_fga']<-totez[,'FGA']-totez[,'fga']
+totez[,'d_xpt']<-totez[,'XPM']-totez[,'xpt']
+totez[,'d_pass_att']<-totez[,'Att.pass']-totez[,'pass_att']
+totez[,'d_pass_cmp']<-totez[,'Cmp.pass']-totez[,'pass_cmp']
+totez[,'d_pass_yds']<-totez[,'Yds.pass']-totez[,'pass_yds']
+totez[,'d_pass_tds']<-totez[,'TD.pass']-totez[,'pass_tds']
+totez[,'d_pass_ints']<-totez[,'Int.pass']-totez[,'pass_ints']
+totez[,'d_rush_att']<-totez[,'Att.rush']-totez[,'rush_att']
+
+res<- totez[,35:49]
+    
+### split data by position
+res.rb <- res[which(totez$pos=='rb'),]
+res.wr <- res[which(totez$pos=='wr'),]
+res.te <- res[which(totez$pos=='te'),]
+res.k <- res[which(totez$pos=='k'),]
+res.qb <- res[which(totez$pos=='qb'),]
+
+dataz <-list(res.k, res.qb, res.rb, res.wr, res.te)      
+
+names(dataz)<- c("res.k", "res.qb", "res.rb", "res.wr", "res.te")
+
+```
+
+
+
+1. Take the difference between the observed data and the projected data for each category. Split the data by position, and keep the columns of interest.
+
+You will now have a list with five elements.  Each element will be a matrix or data.frame with 15 columns.
+
+Task 2: Creating League S3 Class (80 points)
+------------
+
+Create an S3 class called `league`.  Place all code at the end of the instructions.
+
+1. Create a function `league` that takes 5 arguments (`stats`, `nTeams`, `cap`, `posReq`, `points`).  It should return an object of type `league`.  Note that all arguments should remain attributes of the object.  They define the league setup and will be needed to calculate points and dollar values.
+
+1. Create a function `calcPoints` that takes 1 argument, a league object.  It will modify the league object by calculating the number of points each player earns, based on the league setup.
+
+1. Create a function `buildValues` that takes 1 argument, a league object.  It will modify the league object by calculating the dollar value of each player.
+
+    As an example if a league has ten teams and requires one kicker, the tenth best kicker should be worth $1.  All kickers with points less than the 10th kicker should have dollar values of $0.
+
+1. Create a `print` method for the league class. It should print the players and dollar values (you may choose to only include players with values greater than $0).
+1. Create a `plot` method for the league class. Add minimal plotting decorations (such as axis labels).
+
+    * Here's an example:
+
+        ![scatterplot example](https://dl.dropboxusercontent.com/u/5044136/Bios301/plot_ex.png)
+
+1. Create a `boxplot` method for the league class. Add minimal plotting decorations.
+
+    * Here's an example:
+
+        ![boxplot example](https://dl.dropboxusercontent.com/u/5044136/Bios301/box_ex.png)
+
+1. Create a `hist` method for the league class. Add minimal plotting decorations.
+
+    * Here's an example:
+
+        ![histogram example](https://dl.dropboxusercontent.com/u/5044136/Bios301/hist_ex.png)
+
+I will test your code with the following:
+
+```{r, eval=FALSE}
+# x is combined projection data
+pos <- list(qb=1, rb=2, wr=3, te=1, k=1)
+    #rename
+position<-pos
+pnts <- list(fg=4, xpt=1, pass_yds=1/25, pass_tds=4, pass_ints=-2,
+             rush_yds=1/10, rush_tds=6, fumbles=-2, rec_yds=1/20, rec_tds=6)
+points<-pnts
+leeg<-league
+l <- league(stats=x, nTeams=10, cap=200, posReq=pos, points=pnts)
+l
+hist(l)
+boxplot(l)
+plot(l)
+```
+
+I will test your code with additional league settings (using the same projection data).  I will try some things that should work and some things that should break.  Don't be too concerned, but here's some things I might try:
+
+* Not including all positions
+* Including new positions that don't exist
+* Requiring no players at a position
+* Requiring too many players at a position (ie - there aren't 100 kickers)
+
+Note that at this point it should be easy to change a league setting (such as `nTeams`) and re-run `calcPoints` and `buildValues`.
+
+```{r, echo=FALSE}
+    #creating thingy
+league<- function(stats, nTeams, cap, posReq, points) {  
+xma<-list(stats, nTeams, cap, posReq, points)
+class(xma) <-c("league")
+ names(xma) <- c('stats','nTeams','cap','posReq','points')
+ return(xma)
+}
+#2,
+calcPoints<- function(league) {  
+  
+    league$stats[,'p_rush_yds'] <- league$stats[,'rush_yds']*league$points$rush_yds
+  league$stats[,'p_rush_tds'] <- league$stats[,'rush_tds']*league$points$rush_tds
+  league$stats[,'p_fumbles'] <- league$stats[,'fumbles']*league$points$fumbles
+  league$stats[,'p_rec_yds'] <- league$stats[,'rec_yds']*league$points$rec_yds
+  league$stats[,'p_rec_tds'] <- league$stats[,'rec_tds']*league$points$rec_tds
+  
+league$stats[,'p_fg'] <- league$stats[,'fg']*league$points$fg
+  league$stats[,'p_xpt'] <- league$stats[,'xpt']*league$points$xpt
+  league$stats[,'p_pass_yds'] <- league$stats[,'pass_yds']*league$points$pass_yds
+  league$stats[,'p_pass_tds'] <- league$stats[,'pass_tds']*league$points$pass_tds
+  league$stats[,'p_pass_ints'] <- league$stats[,'pass_ints']*league$points$pass_ints
+return(league)}  
+ 
+ 
+# build values function
+buildValues<- function(league) {  
+league$stats[,'points'] <- rowSums(league$stats[,grep("^p_", names(league$stats))])
+
+league2 <- league$stats[order(league$stats[,'points'], decreasing=TRUE),]
+  
+#index
+rb.i <- which(league2[,'pos']=='rb')
+te.i <- which(league2[,'pos']=='te')
+wr.i <- which(league2[,'pos']=='wr')
+
+k.i <- which(league2[,'pos']=='k')
+qb.i <- which(league2[,'pos']=='qb')
+
+# marginal points
+league2[rb.i, 'marg'] <- league2[rb.i,'points'] - (league2[rb.i[league$nTeams*league$posReq$rb],'points'])
+league2[te.i, 'marg'] <- league2[te.i,'points'] - (league2[te.i[league$nTeams*league$posReq$te],'points'])
+league2[wr.i, 'marg'] <- league2[wr.i,'points'] - (league2[wr.i[league$nTeams*league$posReq$wr],'points'])
+
+   league2[k.i, 'marg'] <- league2[k.i,'points'] - (league2[k.i[league$nTeams*league$posReq$k],'points'])
+   league2[qb.i, 'marg'] <- league2[qb.i,'points'] - (league2[qb.i[league$nTeams*league$posReq$qb],'points'])
+
+#subset for non negative
+leeg3 <- league2[league2[,'marg'] >= 0,]
+   
+### reorder
+leeg3 <- leeg3[order(leeg3[,'marg'], decreasing=TRUE),]
+rownames(leeg3) <- NULL
+
+##### player scores
+leeg3[,'value'] <- leeg3[,'marg']*(league$nTeams*league$cap-nrow(leeg3))/sum(leeg3[,'marg']) + 1
+   
+league$stats <- leeg3[,c('Name','pos','points','marg','value')]
+#let's hope this works
+                    return(league)
+          }  
+
+#4, print
+print.league <- function(league) {
+trabla <- league$stats[,c(1,5)]
+  return(trabla)}
+ 
+##5, table
+plot.league <- function(league) {
+  yy<- league$stats$value
+xxxx<- seq(league$stats$value)
+plot(yy~xxxx, ylab="Dollars", xlab="Rank")}
+ 
+#6, boxplot
+boxplot.league <- function(league) {
+  ty<- league$stats$value
+tx<- as.factor(league$stats$pos)
+boxplot(ty~tx, ylab="Dollars", xlab="Pos")}
+
+#7, histograme
+hist.league <- function(league) {
+hy<- league$stats$value
+hist(hy, ylab="Count", xlab="Dollars", main="Histogram")}
+ 
+
+#testing rtesting
+pos <- list(qb=1, rb=2, wr=3, te=1, k=1)
+pnts <- list(fg=4, xpt=1, pass_yds=1/25, pass_tds=4, pass_ints=-2,
+              rush_yds=1/10, rush_tds=6, fumbles=-2, rec_yds=1/20, rec_tds=6)
+l <- league(stats=x2, nTeams=10, cap=200, posReq=pos, points=pnts)
+ 
+test1<- calcPoints(l) 
+test2<- buildValues(test1)
+print(test2)
+    #okay...
+plot(test2)
+    #that works
+boxplot(test2)
+    #that works too, except the labels are weird
+hist(test2)
+    #boom
+```
+
+Task 3: Simulations with Residuals (40 points)
+------------
+
+Using residuals from task 1, create a list of league simulations.  The simulations will be used to generate confidence intervals for player values.  Place all code at the end of the instructions.
+
+1. Create a function `addNoise` that takes 4 arguments: a league object, a list of residuals, number of simulations to generate, and a RNG seed. It will modify the league object by adding a new element `sims`, a matrix of simulated dollar values.
+
+    The original league object contains a `stats` attribute. Each simulation will modify this by adding residual values. This modified `stats` data.frame will then be used to create a new league object (one for each simulation).  Calculate dollar values for each simulation.  Thus if 1000 simulations are requested, each player will have 1000 dollar values.  Create a matrix of these simulated dollar values and attach it to the original league object.
+
+    As an example assume you want to simulate new projections for quarterbacks. The residuals for quarterbacks is a 20x15 matrix. Each row from this matrix is no longer identified with a particular player, but rather it's potential error. Given the original projection for the first quarterback, sample one value between 1 and 20. Add the 15 columns from the sampled row to the 15 columns for the first quarterback. Repeat the process for every quarterback. Note that stats can't be negative so replace any negative values with 0.
+
+1. Create a `quantile` method for the league class; it takes at least two arguments, a league object and a probs vector. This method requires the `sims` element; it should fail if `sims` is not found. The `probs` vector should default to `c(0.25, 0.5, 0.75)`.  It should run `quantile` on the dollar values for each player.
+
+1. Create a function `conf.interval`; it takes at least two arguments, a league object and a probs vector. This method requires the `sims` element; it should fail if `sims` is not found. It should return a new object of type `league.conf.interval`.
+
+    The new object will contain the output of `quantile`. However, results should be split by position and ordered by the last column (which should be the highest probability) descendingly.  Restrict the number of rows to the number of required players at each position.
+
+1. Create a `plot` method for the league.conf.interval class; it takes at least two arguments, a league.conf.interval object and a position. Plot lines for each probability; using the defaults, you would have three lines (0.25, 0.5, 0.75). Add minimal plotting decorations and a legend to distinguish each line.
+
+    * Here's an example:
+
+        ![ciplot example](https://dl.dropboxusercontent.com/u/5044136/Bios301/ciplot_ex.png)
+
+I will test your code with the following:
+
+```{r, eval=FALSE}
+l1 <- addNoise(l, noise, 10000)
+quantile(l1)
+ci <- conf.interval(l1)
+plot(ci, 'qb')
+plot(ci, 'rb')
+plot(ci, 'wr')
+plot(ci, 'te')
+plot(ci, 'k')
+```
+
+```{r, echo=FALSE}
+#here goes my best shot...
+
+addNoise <- function(league, rezid, nsim, seed=sample(1:10000,1)){
+  
+set.seed(seed)
+
+league$sims <- as.data.frame(matrix(0, ncol = nrow(league$stats), nrow = 0))
+
+colnames(league$sims) <- l$stats$Name   
+
+statz <- league$stats #making a copy
+  
+for(i in 1:nsim) {
+  
+#quyarterbacks
+qb<-statz[which(statz[,'pos']=="qb"),]                              
+noise<-sample(1:nrow(rezid$res.qb), nrow(qb), replace=T)    
+    
+qb[,"pass_yds"]<- qb[,"pass_yds"]+rezid$res.qb[noise,"d_pass_yds"]
+qb[,"pass_tds"]<- qb[,"pass_tds"]+rezid$res.qb[noise,"d_pass_tds"]
+qb[,"pass_ints"]<- qb[,"pass_ints"]+rezid$res.qb[noise,"d_pass_ints"]  
+
+qb[,"rush_yds"]<- qb[,"rush_yds"]+rezid$res.qb[noise,"d_rush_yds"]
+qb[,"rush_tds"]<- qb[,"rush_tds"]+rezid$res.qb[noise,"d_rush_tds"]
+qb[,"fumbles"]<- qb[,"fumbles"]+rezid$res.qb[noise,"d_fumbles"]
+  
+#kickers
+k<-statz[which(statz[,'pos']=="k"),]                             
+noise<-sample(1:nrow(rezid$res.k), nrow(k), replace=T)   #sample with noise
+    
+k[,"fg"]<- k[,"fg"]+rezid$res.k[noise,"d_fg"]
+k[,"xpt"]<- k[,"xpt"]+rezid$res.k[noise,"d_xpt"]
+    
+ 
+#tight end
+te<-statz[which(statz[,'pos']=="te"),]
+noise<-sample(1:nrow(rezid$res.te), nrow(te), replace=T)
+    
+te[,"fumbles"]<- te[,"fumbles"]+rezid$res.te[noise,"d_fumbles"]
+te[,"rec_yds"]<- te[,"rec_yds"]+rezid$res.te[noise,"d_rec_yds"]
+te[,"rec_tds"]<- te[,"rec_tds"]+rezid$res.te[noise,"d_rec_tds"]
+
+#runningback
+rb<-statz[which(statz[,'pos']=="rb"),]  #subsets
+noise<-sample(1:nrow(rezid$res.rb), nrow(rb), replace=T)  #resample
+  
+rb[,"rec_yds"]<- rb[,"rec_yds"]+rezid$res.rb[noise,"d_rec_yds"]
+rb[,"rec_tds"]<- rb[,"rec_tds"]+rezid$res.rb[noise,"d_rec_tds"]
+
+rb[,"rush_yds"]<- rb[,"rush_yds"]+rezid$res.rb[noise,"d_rush_yds"]
+rb[,"rush_tds"]<- rb[,"rush_tds"]+rezid$res.rb[noise,"d_rush_tds"]
+rb[,"fumbles"]<- rb[,"fumbles"]+rezid$res.rb[noise,"d_fumbles"]
+    
+#wide receivers
+wr<-statz[which(statz[,'pos']=="wr"),]                    
+noise<-sample(1:nrow(rezid$res.wr), nrow(wr), replace=T) #sample w/noise
+    
+wr[,"rush_yds"]<- wr[,"rush_yds"]+rezid$res.wr[noise,"d_rush_yds"]
+wr[,"rush_tds"]<- wr[,"rush_tds"]+rezid$res.wr[noise,"d_rush_tds"]
+wr[,"fumbles"]<- wr[,"fumbles"]+rezid$res.wr[noise,"d_fumbles"]
+wr[,"rec_yds"]<- wr[,"rec_yds"]+rezid$res.wr[noise,"d_rec_yds"]
+wr[,"rec_tds"]<- wr[,"rec_tds"]+rezid$res.wr[noise,"d_rec_tds"]
+    
+#merging everything together
+newnew_stat<- rbind(k,qb,rb, wr, te)
+newnew_stat[newnew_stat<0]=0         
+    ###   
+league$stats <- newnew_stat         #noise
+league<-calcPoints(league)                #points
+    
+league<-buildValues(league)          #dollars
+rep<- as.data.frame(t(league$stats$value))        #generate data frame
+  colnames(rep) <- league$stats$Name              
+    
+  league$sims<-rbind.fill(league$sims, rep)   
+  league$sims[is.na(league$sims)] <- 0           #replace missing w/zero
+  }
+
+  league$stats <- statz                          
+   return(league)
+}
+
+
+#quantile function method
+quantile.league <- function(league, prob=c(0.25, 0.5, 0.75)) {
+if(is.null(league$sims) == TRUE) {
+    stop("No simulations available")
+}
+  apply(league$sims,2,function(p) quantile(p,prob=prob))
+}
+
+#confidence interval method function
+conf.interval <- function(league, prob=c(0.25, 0.5, 0.75)) {
+if(is.null(league$sims) == TRUE) {
+stop("Sims not available") 
+}
+datums<- as.data.frame(quantile(league))
+low<- as.numeric(datums[1,])
+mid<- as.numeric(datums[2,])
+up<- as.numeric(datums[3,])
+datums<-data.frame(low,mid,up, league$stats$Name, league$stats$pos)
+datums<- datums[order(datums[,2], decreasing=TRUE),] # srt by 50% quantile
+    
+colnames(datums)<-c("25%","50%","75%","Name","Position")
+ 
+#quarterback
+qb<- datums[which(datums$Position=='qb'),][seq(league$nTeams*league$posReq$qb),]
+
+#kicker
+k<- datums[which(datums$Position=='k'),][seq(league$nTeams*league$posReq$k),]
+
+#runnign back
+rb<- datums[which(datums$Position=='rb'),][seq(league$nTeams*league$posReq$rb),]
+
+#wide receiver
+wr<- datums[which(datums$Position=='wr'),][seq(league$nTeams*league$posReq$wr),]
+
+#tight end
+te<- datums[which(datums$Position=='te'),][seq(league$nTeams*league$posReq$te),]
+
+#wide receiver
+wr<- datums[which(datums$Position=='wr'),][seq(league$nTeams*league$posReq$wr),]
+
+#compile a list with all of the positions
+simzx<-list(qb, k, rb, wr, te)
+ names(simzx) <- c('qb','k','rb','wr','te')  
+class(simzx)<-'conf.interval'
+  return(simzx)
+}
+
+#4, plotting confidence intervals
+plot.conf.interval <- function(ci, pos) {
+pos<-substitute(pos)
+dat<-as.data.frame(ci[pos])
+num<-seq_along(dat[,2])
+
+plot(NULL,ylab="Dollar Value", xlab="Ranking", ylim=c(0,max(dat[,3])), xlim=c(0,length(num)))
+lines(dat[,1]~num, lty="dashed")
+lines(dat[,2]~num, lty="solid")
+lines(dat[,3]~num, lty="dotted")
+legend("topright", lty=c("dashed","solid","dotted"), c("25%","50%","75%"))  
+}
+
+noise<- dataz
+l1 <- addNoise(l, noise, 1000)
+    #wow that took forever
+quantile(l1)
+ci <- conf.interval(l1)
+plot(ci, 'qb')
+plot(ci, 'rb')
+plot(ci, 'wr')
+plot(ci, 'te')
+plot(ci, 'k')
+   #good freaking grief. eureka! 
+
+
+```
+
+# Comments
+
+* Task 2, league object doesn't fail gracefully; -5
+    * code should fail on things like not enough players
+    * `calcPoints` should be able to handle any point requirements defined through `points`; don't hard-code this total
+* Task 3.3, several small issues; -5
+    * Argument `prob` should be passed to quantile and recognized in output
+    * Line 450, my test dataset failed here because of duplicate names; ie, `low` had length smaller than `league$stats$Name`
+    * Results should be ordered by highest percentile
+    * Created class should be `league.conf.interval`
+* Task 3.4, function name should be `plot.league.conf.interval`; -1
+
+# Grade
+
+189/200
